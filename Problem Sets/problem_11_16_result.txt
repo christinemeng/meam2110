@@ -1,0 +1,104 @@
+import numpy as np
+import sympy as sym
+import sys
+sys.path.append("/Users/christinemeng/Desktop/meam2110project")
+from meam2110 import *
+
+sym.init_printing(use_unicode=False)
+
+# The problem has four bodies of interest: N, A, B, C
+# N is special, as our system always has an inertial frame
+system = RigidBodySystem(visualize=False)
+
+# constants
+m = sym.symbols('m')
+r = sym.symbols('r')
+L = sym.symbols('L')
+
+mass_C = np.abs(m)
+
+#
+# YOUR CODE BELOW !!!!! READ THIS!!
+#
+# Determine the inertia of C about Ccm, and the position of the center of mass in C's coordinates
+I_C_Ccm = np.array([[((1/4)*m*r*r), 0, 0],
+                   [0, ((1/4)*m*(r**2)), 0],
+                   [0, 0, ((1/4)*m*(r**2))]]) # fix me
+
+r_Co_Ccm = np.array([0, 0, L]) # Fix me
+
+N = system.InertialFrameN()
+A = Body('A')
+B = Body('B')
+C = Body('C', mass=mass_C, I_B_Bcm=I_C_Ccm, r_Bo_Bcm=r_Co_Ccm)
+
+# Joint position, velocity
+theta = sym.symbols('theta')
+theta_dot = sym.symbols('theta_dot')
+phi = sym.symbols('phi')
+phi_dot = sym.symbols('phi_dot')
+q_C = sym.symbols('q_c') # the textbook only defines omega_C, but our code always needs a position variable too
+omega_C = sym.symbols('omega_C')
+
+# 
+#
+# YOUR CODE BELOW
+#   Assemble into q, q_dot
+#   Be sure to pay attention to the sign of the angles in the problem! Your code
+#   generates rotations in the positive direction, but theta and phi represent
+#   angles in the negative direction
+# 
+q = np.array([-1*theta, -1*phi, q_C]) # REPLACE ME!
+q_dot = np.array([-1*theta_dot, -1*phi_dot, omega_C]) # REPLACE ME!
+
+# Add the appropriate joints to the system
+system.AddJoint(N, A, JointType.rotation, UnitVector.z)
+system.AddJoint(A, B, JointType.rotation, UnitVector.x)
+system.AddJoint(B, C, JointType.rotation, UnitVector.y)
+#  Use your code from this week to calculate
+#  L_C_N_B: the linear momentum of C in N, expressed in B's coordinates
+#  H_C_No_N_B: the angular momentum of C about No, in N, expressed in B's coordinates
+
+
+# Since C is the only body that hass any mass, we only need to compute momentum of C
+print('\n*** L_C_N expressed in B coordinates ***')
+L_C_N_N = BodyLinearMomentum(system, q, q_dot, C, N)
+L_C_N_B = ChangeCoordinates(system, q, L_C_N_N, N, B)
+SimplifyAndPrint(L_C_N_B)
+                        
+print('\n*** H_C_No_N expressed in B coordinates ***')
+H_C_No_N_N = BodyAngularMomentum(system, q, q_dot, C, N, np.zeros(3))
+H_C_No_N_B = ChangeCoordinates(system, q, H_C_No_N_N, N, B)
+SimplifyAndPrint(H_C_No_N_B)
+
+# note: this second one takes a while to print out...
+
+# Optional (ungraded): compute the kinetic energy K_C_N
+# Suggestion: use your kinematics methods from previous weeks, in combination with the momentum results above!
+# If you choose to do this, you'll need the updated util.py from Canvas for SimplifyAndPrint to work properly
+
+*** L_C_N expressed in B coordinates ***
+[    1.0*L*(omega_C + theta_dot*sin(phi))*cos(q_c)*|m|     ]
+[                                                          ]
+[1.0*L*(phi_dot*cos(q_c) - theta_dot*sin(q_c)*cos(phi))*|m|]
+[                                                          ]
+[    -1.0*L*(omega_C + theta_dot*sin(phi))*sin(q_c)*|m|    ]
+
+*** H_C_No_N expressed in B coordinates ***
+[       2                               2                     2               
+[- 0.5*L *phi_dot*cos(2*q_c)*|m| - 0.5*L *phi_dot*|m| - 0.25*L *theta_dot*sin(
+[                                                                             
+[                               2                    2                        
+[                          1.0*L *omega_C*|m| + 1.0*L *theta_dot*sin(phi)*|m| 
+[                                                                             
+[                             2                                  2            
+[                        1.0*L *phi_dot*sin(q_c)*cos(q_c)*|m| - L *theta_dot*s
+
+                         2                                                  2]
+phi - 2*q_c)*|m| + 0.25*L *theta_dot*sin(phi + 2*q_c)*|m| - 0.25*m*phi_dot*r ]
+                                                                             ]
+                  2           2                                              ]
++ 0.25*m*omega_C*r  + 0.25*m*r *theta_dot*sin(phi)                           ]
+                                                                             ]
+  2                             2                                            ]
+in (q_c)*cos(phi)*|m| - 0.25*m*r *theta_dot*cos(phi)                         ]

@@ -1,0 +1,84 @@
+import numpy as np
+import sympy as sym
+from meam2110 import *
+sym.init_printing(use_unicode=False)
+system = RigidBodySystem(visualize=False)
+
+N = system.InertialFrameN()
+A = Body('A')
+B = Body('B')
+C = Body('C')
+
+# YOUR CODE HERE
+#
+#  Use system.addJoint() to add three joints connecting N, B, C
+
+# Joint position, velocity, and acceleration variables
+theta = sym.symbols('theta')
+theta_dot = sym.symbols('theta_dot')
+theta_ddot = sym.symbols('theta_ddot')
+
+phi = sym.symbols('phi')
+phi_dot = sym.symbols('phi_dot')
+phi_ddot = sym.symbols('phi_ddot')
+
+q_C = sym.symbols('q_C)')
+omega_C = sym.symbols('omega_C')
+omega_C_dot = sym.symbols('omega_C_dot')
+
+# 
+#
+# YOUR CODE BELOW
+
+system.AddJoint(N, A, JointType.rotation, UnitVector.z)
+system.AddJoint(A, B, JointType.rotation, UnitVector.x)
+system.AddJoint(B, C, JointType.rotation, UnitVector.z)
+
+
+q = np.array([-1 * theta, -1 * phi, q_C])
+q_dot = np.array([-1 * theta_dot, -1 * phi_dot, omega_C])
+q_ddot = np.array([-1 * theta_ddot, -1 * phi_ddot, omega_C_dot])
+
+R_B_N = RelativeRotationMatrix(system, q, N, B)
+w_N_B_N = BodyAngVelAndAccel(system, q, q_dot, B, N, q_ddot)[0]
+
+# Print results int he proper coordinates
+print('\n w_N_B in B\'s coordinates: \n')
+w_N_B_B = R_B_N @ w_N_B_N
+SimplifyAndPrint(w_N_B_B)
+
+w_N_C_N = BodyAngVelAndAccel(system, q, q_dot, C, N, q_ddot)[0]
+
+print('\n w_N_C in B\'s coordinates: \n')
+w_N_C_B = R_B_N @ w_N_C_N
+SimplifyAndPrint(w_N_C_B)
+
+alpha_N_B = BodyAngVelAndAccel(system, q, q_dot, B, N, q_ddot)[1]
+
+print('\n alpha_N_B in B\'s coordinates: \n')
+alpha_N_B_B = R_B_N @ alpha_N_B
+SimplifyAndPrint(alpha_N_B_B)
+
+ w_N_B in B's coordinates: 
+
+[     -1.0*phi_dot      ]
+[                       ]
+[1.0*theta_dot*sin(phi) ]
+[                       ]
+[-1.0*theta_dot*cos(phi)]
+
+ w_N_C in B's coordinates: 
+
+[          -1.0*phi_dot          ]
+[                                ]
+[     1.0*theta_dot*sin(phi)     ]
+[                                ]
+[1.0*omega_C - theta_dot*cos(phi)]
+
+ alpha_N_B in B's coordinates: 
+
+[                     -1.0*phi_ddot                      ]
+[                                                        ]
+[1.0*phi_dot*theta_dot*cos(phi) + 1.0*theta_ddot*sin(phi)]
+[                                                        ]
+[  1.0*phi_dot*theta_dot*sin(phi) - theta_ddot*cos(phi)  ]

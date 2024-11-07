@@ -1,0 +1,108 @@
+import numpy as np
+import sympy as sym
+# note: I had to append this because my old VSCode corrupted.
+import sys
+sys.path.append("/Users/christinemeng/Desktop/meam2110project")
+from meam2110 import *
+
+sym.init_printing(use_unicode=False)
+system = RigidBodySystem(visualize=False)
+
+# Since we always assume gravity is in the -nz direction, we have to tweak the coordinate choices in the textbook
+# we'll call n_z up, n_y  into the page.
+# the rotation is then a positive n_y rotation
+
+# constants
+m_A = 10
+m_B = 1
+L = sym.symbols('L')
+Izz = sym.symbols('Izz') # To keep with the textbook, we'll still call this Izz--but it's now in the yy direction
+g = 9.8
+
+N = system.InertialFrameN()
+A = Body('A', mass=m_A)
+I_B_Bcm=np.diag([0, Izz, 0])
+r_Bo_Bcm = np.array([0, 0, L]) # now in the z-direction
+B = Body('B', mass=m_B, I_B_Bcm=I_B_Bcm, r_Bo_Bcm=r_Bo_Bcm)
+
+# Joint position, velocity
+x = sym.symbols('x')
+x_dot = sym.symbols('x_dot')
+x_ddot = sym.symbols('x_ddot')
+
+theta = sym.symbols('theta')
+theta_dot = sym.symbols('theta_dot')
+theta_ddot = sym.symbols('theta_ddot')
+
+q = np.array([x, theta])
+qdot = np.array([x_dot, theta_dot])
+qddot = np.array([x_ddot, theta_ddot])
+
+
+system.AddJoint(N, A, JointType.translation, UnitVector.x)
+system.AddJoint(A, B, JointType.rotation, UnitVector.y)
+
+AddGravityToSystem(system, g=g)
+AddJointConstraints(system)
+
+# Add an actuator for F_c
+# Next year, I'll add some code to make it easier to find the joint you want
+for joint in system.joints.keys():
+  if joint.name == 'N_A':
+    F_c_actuator = JointActuator(joint)
+    system.AddForceTorque(F_c_actuator)
+
+eom = NewtonEulerSystemEquations(system, q, qdot, qddot)
+
+# We'll do some Python symbolic stuff to extract your answers
+reaction_vars = AggregateReactionVariables(system)
+sol = sym.solve(eom, np.hstack((x_ddot, theta_ddot, reaction_vars)).tolist(), dict=False)
+
+print('\n-------------------------- xddot  -------------------------- ')
+SimplifyAndPrint(sol[x_ddot])
+
+
+print('\n-------------------------- theta_ddot  -------------------------- ')
+SimplifyAndPrint(sol[theta_ddot])
+
+# Let's check your answer against the textbook in 15.9
+print('\n-------------------------- first equation  -------------------------- ')
+# Our code automatically picks the name "u_N_A" for the input on the N-A joint
+# So the right-hand-side should be u_N_A, not F_c
+equation_one_left_hand_side = (m_A + m_B)*sol[x_ddot] + m_B*L*sym.cos(theta)*sol[theta_ddot] - m_B*L*sym.sin(theta)*theta_dot**2
+SimplifyAndPrint(equation_one_left_hand_side)
+
+print('\n-------------------------- second equation  -------------------------- ')
+# The right hand side here is simply zero!
+# YOUR CODE HERE! Confirm that your code gives the same answer as the textbook 
+# Just type in the left-hand side, from the second equation in solution in 15.9
+# Since the right-hand side is zero in the textbook, you should also get zero!
+# Follow the pattern above, using sol[x_ddot] and sol[theta_ddot]
+equation_two_left_hand_side = (m_B * L * sym.cos(theta) * sol[x_ddot]) + ((Izz + m_B * L ** 2) * sol[theta_ddot]) - (m_B * g * L * sym.sin(theta))
+SimplifyAndPrint(equation_two_left_hand_side)
+
+-------------------------- xddot  -------------------------- 
+                   2                                   3          2           
+5.0*Izz*L*theta_dot *sin(theta) + 5.0*Izz*u_N_A + 5.0*L *theta_dot *sin(theta)
+------------------------------------------------------------------------------
+                                                      2    2                2 
+                                      55.0*Izz + 5.0*L *sin (theta) + 50.0*L  
+
+        2               2             
+ + 5.0*L *u_N_A - 24.5*L *sin(2*theta)
+--------------------------------------
+                                      
+                                      
+
+-------------------------- theta_ddot  -------------------------- 
+  /                 2                                                       \
+L*\- 2.5*L*theta_dot *sin(2*theta) - 5.0*u_N_A*cos(theta) + 539.0*sin(theta)/
+-----------------------------------------------------------------------------
+                                   2    2                2                   
+                   55.0*Izz + 5.0*L *sin (theta) + 50.0*L                    
+
+-------------------------- first equation  -------------------------- 
+1.0*u_N_A
+
+-------------------------- second equation  -------------------------- 
+0
